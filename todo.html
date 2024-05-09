@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff8da;
+    }
+
+    .container {
+      max-width: 49%;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #feffe7;
+      border-radius: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #000000;
+      font-size: 60px;
+      text-transform: uppercase;
+      font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      margin-left: 15px;
+      text-decoration: underline;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"] {
+      width: 70%;
+      height: 35px;
+      padding: 5px;
+      font-size: 16px;
+      border: 3px solid #dee3cc;
+      border-radius: 5px;
+      margin: 10px;
+    }
+
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .todo-item:last-child {
+      border-bottom: none;
+    }
+
+    input[type="checkbox"] {
+      margin-right: 10px;
+      margin-left: 10px;
+    }
+
+    .completed {
+      text-decoration: line-through;
+    }
+
+    .expired {
+      color: rgb(202, 0, 0);
+    }
+
+    button {
+      background-color: #e3e3ae;
+      color: #5a5b54;
+      border: none;
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 15px;
+      width: 37%;
+    }
+
+    button:hover {
+      background-color: #979767;
+      transform: scale(1.03);
+    }
+
+
+    .divider {
+      width: 100%;
+      border-bottom: 1px solid #a9a9a9a8;
+      margin: 10px 0;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" class="container">
+    <h1>To do List</h1>
+    <div>
+      <input type="text" v-model="newTodoText" @keyup.enter="addTodo" placeholder="添加任务...">
+      <input type="datetime-local" v-model="newTodoDeadline">
+    </div>
+    <div class="search-box">
+      <input type="text" v-model="searchKeyword" class="search-input" placeholder="搜索任务...">
+    </div>
+    <div>
+      <button @click="removeCompleted">删除已完成任务</button>
+      <button @click="removeAll">删除所有任务</button>
+    </div>
+    <div class="divider"></div>
+    <div id="todoList">
+      <div v-for="(todo, index) in filteredTodos" :key="index" class="todo-item"
+        :class="{ completed: todo.completed, expired: isExpired(todo.deadline) }" :data-id="todo.id"
+        @dblclick="editTodo(todo)">
+
+        <input type="checkbox" v-model="todo.completed">
+        <span>{{ todo.text }} {{ new Date(todo.deadline).toLocaleString() }}</span>
+        <button @click="removeTodo(index)">删除</button>
+      </div>
+    </div>
+    <div v-if="editMode" class="modal">
+      <div class="modal-content">
+        <input type="text" v-model="editedTodo.text">
+        <input type="datetime-local" v-model="editedTodo.deadline">
+        <button @click="saveEdit">保存修改</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        newTodoText: '',
+        newTodoDeadline: '',
+        todos: [],
+        editMode: false,
+        editedTodo: { text: '', deadline: '' },
+        searchKeyword: '',
+      },
+      computed: {
+        filteredTodos() {
+          return this.todos.filter(todo => todo.text.toLowerCase().includes(this.searchKeyword.toLowerCase()));
+        },
+      },
+
+      mounted() {
+        const todoList = document.getElementById('todoList');
+        Sortable.create(todoList, {
+          animation: 150,
+        });
+      },
+      methods: {
+        addTodo() {
+          if (this.newTodoText.trim() !== '') {
+            this.todos.push({
+              id: Date.now(),
+              text: this.newTodoText,
+              completed: false,
+              deadline: this.newTodoDeadline
+            });
+            this.newTodoText = '';
+            this.newTodoDeadline = '';
+          }
+        },
+        removeTodo(index) {
+          this.todos.splice(index, 1);
+        },
+        isExpired(deadline) {
+          if (!deadline) {
+            return false;
+          }
+          const now = new Date();
+          return now > new Date(deadline);
+        },
+        editTodo(todo) {
+          this.editMode = true;
+          this.editedTodo = { ...todo };
+        },
+        saveEdit() {
+          const index = this.todos.findIndex(todo => todo.id === this.editedTodo.id);
+          if (index !== -1) {
+            this.todos[index].text = this.editedTodo.text;
+            this.todos[index].deadline = this.editedTodo.deadline; // 更新截止日期
+            this.editMode = false;
+            this.editedTodo = { text: '', deadline: '' };
+          }
+        },
+        removeCompleted() {
+          this.todos = this.todos.filter(todo => !todo.completed);
+        },
+        removeAll() {
+          this.todos = [];
+        },
+      }
+    });
+  </script>
+</body>
+
+</html>
